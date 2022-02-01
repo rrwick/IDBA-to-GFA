@@ -28,13 +28,13 @@ def main():
     # Run the IDBA print_graph tool to make a graph.
     temp_fasta = 'idba_graph_to_gfa_temp.fasta'
     connection_str = subprocess.check_output([args.print_graph, '-k', str(args.kmer), '--max_length', '1000000000', args.idba_assembly, temp_fasta]).decode()
-    sequences = load_fasta(temp_fasta)
+    sequences, depths = load_fasta(temp_fasta)
     connections = load_connections(connection_str, sequences, args.kmer)
     os.remove(temp_fasta)
 
     # Print the GFA segment lines.
     for seg_num in sorted(sequences.keys()):
-        print('\t'.join(['S', str(seg_num), sequences[seg_num]]))
+        print('\t'.join(['S', str(seg_num), sequences[seg_num], "RC:"+depths[seg_num]]))
 
     # Print the GFA link lines.
     overlap_str = str(args.kmer - 1) + 'M'
@@ -61,6 +61,7 @@ def get_arguments():
 
 def load_fasta(filename):
     fasta_seqs = {}
+    fasta_depths = {}
     with open(filename, 'rt') as fasta_file:
         name = None
         sequence = ''
@@ -73,11 +74,14 @@ def load_fasta(filename):
                     fasta_seqs[name] = sequence
                     sequence = ''
                 name = int(line[1:].split('_')[1])
+                
+                if 'count' in line.split()[-1].split('_')[1] :
+                    fasta_depths[name] = line.split()[-1].split('_')[2]
             else:
                 sequence += line
         if name:
             fasta_seqs[name] = sequence
-    return fasta_seqs
+    return fasta_seqs, fasta_depths
 
 
 def load_connections(connection_str, sequences, kmer_size):
