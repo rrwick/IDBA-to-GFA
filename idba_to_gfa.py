@@ -12,6 +12,8 @@ details. You should have received a copy of the GNU General Public License along
 not, see <http://www.gnu.org/licenses/>.
 """
 
+
+
 import argparse
 import collections
 import subprocess
@@ -28,13 +30,20 @@ def main():
     # Run the IDBA print_graph tool to make a graph.
     temp_fasta = 'idba_graph_to_gfa_temp.fasta'
     connection_str = subprocess.check_output([args.print_graph, '-k', str(args.kmer), '--max_length', '1000000000', args.idba_assembly, temp_fasta]).decode()
-    sequences, depths = load_fasta(temp_fasta)
+    depths = load_depths(args.idba_assembly)
+    sequences = load_fasta(temp_fasta)
+    #print(depths)
+    # while True :
+    #     pass
     connections = load_connections(connection_str, sequences, args.kmer)
     os.remove(temp_fasta)
 
     # Print the GFA segment lines.
     for seg_num in sorted(sequences.keys()):
-        print('\t'.join(['S', str(seg_num), sequences[seg_num], "RC:"+depths[seg_num]]))
+        if seg_num in depths :
+            print('\t'.join(['S', str(seg_num), sequences[seg_num], "RC:"+depths[seg_num]]))
+        else :
+            print('\t'.join(['S', str(seg_num), sequences[seg_num]]))
 
     # Print the GFA link lines.
     overlap_str = str(args.kmer - 1) + 'M'
@@ -58,10 +67,22 @@ def get_arguments():
 
     return parser.parse_args()
 
-
+def load_depths(filename):
+    fasta_depths = {}
+    
+    with open(filename, 'rt') as fasta_file:
+        
+        for line in fasta_file:
+            
+            if line[0] == '>':  # Header line = start of new contig
+                if 'count' in line.split()[-1].split('_')[1] :
+                    name = int(line[1:].split()[0].split('_')[1])
+                    fasta_depths[name] = line.split()[-1].split('_')[2]
+    return fasta_depths
+    
 def load_fasta(filename):
     fasta_seqs = {}
-    fasta_depths = {}
+    
     with open(filename, 'rt') as fasta_file:
         name = None
         sequence = ''
@@ -75,14 +96,11 @@ def load_fasta(filename):
                     sequence = ''
                 name = int(line[1:].split('_')[1])
                 
-                if 'count' in line.split()[-1].split('_')[1] :
-                    fasta_depths[name] = line.split()[-1].split('_')[2]
             else:
                 sequence += line
         if name:
             fasta_seqs[name] = sequence
-    return fasta_seqs, fasta_depths
-
+    return fasta_seqs
 
 def load_connections(connection_str, sequences, kmer_size):
     connections = collections.defaultdict(set)
