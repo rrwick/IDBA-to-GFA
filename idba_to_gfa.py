@@ -32,9 +32,6 @@ def main():
     connection_str = subprocess.check_output([args.print_graph, '-k', str(args.kmer), '--max_length', '1000000000', args.idba_assembly, temp_fasta]).decode()
     depths = load_depths(args.idba_assembly)
     sequences = load_fasta(temp_fasta)
-    #print(depths)
-    # while True :
-    #     pass
     connections = load_connections(connection_str, sequences, args.kmer)
     os.remove(temp_fasta)
 
