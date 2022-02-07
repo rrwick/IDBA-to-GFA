@@ -34,11 +34,17 @@ def main():
     sequences = load_fasta(temp_fasta)
     connections = load_connections(connection_str, sequences, args.kmer)
     os.remove(temp_fasta)
+    
+    read_length = args.read_length
 
     # Print the GFA segment lines.
     for seg_num in sorted(sequences.keys()):
         if seg_num in depths :
-            print('\t'.join(['S', str(seg_num), sequences[seg_num], "RC:"+depths[seg_num]]))
+            if args.read_length == 0 :
+                print('\t'.join(['S', str(seg_num), sequences[seg_num], "RC:i:"+depths[seg_num]]))
+            else :
+                d = float(depths[seg_num])*read_length/len(sequences[seg_num])
+                print('\t'.join(['S', str(seg_num), sequences[seg_num], "dp:f:"+str(d)]))
         else :
             print('\t'.join(['S', str(seg_num), sequences[seg_num]]))
 
@@ -61,6 +67,8 @@ def get_arguments():
                         help='assembly k-mer size (e.g. 100)')
     parser.add_argument('--print_graph', type=str, default='print_graph',
                         help="Location of IDBA's print_graph tool (required if print_graph is not in PATH)")
+    parser.add_argument('-r', '--read_length', type=int, required=False, default=0 ,
+                        help="Length of the reads used to build the graph, if you want dp: tags in the GFA. (optional)")
 
     return parser.parse_args()
 
