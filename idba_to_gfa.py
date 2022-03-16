@@ -43,7 +43,7 @@ def main():
             if args.read_length == 0 :
                 print('\t'.join(['S', str(seg_num), sequences[seg_num], "RC:i:"+depths[seg_num]]))
             else :
-                d = float(depths[seg_num])*read_length/len(sequences[seg_num])
+                d = float(depths[seg_num])*read_length/(len(sequences[seg_num])+2*read_length)
                 print('\t'.join(['S', str(seg_num), sequences[seg_num], "dp:f:"+str(d)]))
         else :
             print('\t'.join(['S', str(seg_num), sequences[seg_num]]))
