@@ -12,6 +12,8 @@ details. You should have received a copy of the GNU General Public License along
 not, see <http://www.gnu.org/licenses/>.
 """
 
+
+
 import argparse
 import collections
 import subprocess
@@ -28,13 +30,23 @@ def main():
     # Run the IDBA print_graph tool to make a graph.
     temp_fasta = 'idba_graph_to_gfa_temp.fasta'
     connection_str = subprocess.check_output([args.print_graph, '-k', str(args.kmer), '--max_length', '1000000000', args.idba_assembly, temp_fasta]).decode()
+    depths = load_depths(args.idba_assembly)
     sequences = load_fasta(temp_fasta)
     connections = load_connections(connection_str, sequences, args.kmer)
     os.remove(temp_fasta)
+    
+    read_length = args.read_length
 
     # Print the GFA segment lines.
     for seg_num in sorted(sequences.keys()):
-        print('\t'.join(['S', str(seg_num), sequences[seg_num]]))
+        if seg_num in depths :
+            if args.read_length == 0 :
+                print('\t'.join(['S', str(seg_num), sequences[seg_num], "RC:i:"+depths[seg_num]]))
+            else :
+                d = float(depths[seg_num])*read_length/(len(sequences[seg_num])+2*read_length)
+                print('\t'.join(['S', str(seg_num), sequences[seg_num], "dp:f:"+str(d)]))
+        else :
+            print('\t'.join(['S', str(seg_num), sequences[seg_num]]))
 
     # Print the GFA link lines.
     overlap_str = str(args.kmer - 1) + 'M'
@@ -55,12 +67,27 @@ def get_arguments():
                         help='assembly k-mer size (e.g. 100)')
     parser.add_argument('--print_graph', type=str, default='print_graph',
                         help="Location of IDBA's print_graph tool (required if print_graph is not in PATH)")
+    parser.add_argument('-r', '--read_length', type=int, required=False, default=0 ,
+                        help="Length of the reads used to build the graph, if you want dp: tags in the GFA. (optional)")
 
     return parser.parse_args()
 
-
+def load_depths(filename):
+    fasta_depths = {}
+    
+    with open(filename, 'rt') as fasta_file:
+        
+        for line in fasta_file:
+            
+            if line[0] == '>':  # Header line = start of new contig
+                if 'count' in line.split()[-1].split('_')[1] :
+                    name = int(line[1:].split()[0].split('_')[1])
+                    fasta_depths[name] = line.split()[-1].split('_')[2]
+    return fasta_depths
+    
 def load_fasta(filename):
     fasta_seqs = {}
+    
     with open(filename, 'rt') as fasta_file:
         name = None
         sequence = ''
@@ -73,12 +100,12 @@ def load_fasta(filename):
                     fasta_seqs[name] = sequence
                     sequence = ''
                 name = int(line[1:].split('_')[1])
+                
             else:
                 sequence += line
         if name:
             fasta_seqs[name] = sequence
     return fasta_seqs
-
 
 def load_connections(connection_str, sequences, kmer_size):
     connections = collections.defaultdict(set)
